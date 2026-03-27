@@ -19,6 +19,7 @@ struct ID {
   struct Device { enum : uint {
     None,
     Gamepad,
+    HoriGamecube,
     Mouse,
     SuperMultitap,
     SuperScope,

@@ -117,6 +117,29 @@ SuperFamicom
       TurboX
       TurboL
       TurboR
+
+    HoriGamecube
+      Up: Keyboard/1/Button/Up
+      Down: Keyboard/1/Button/Down
+      Left: Keyboard/1/Button/Left
+      Right: Keyboard/1/Button/Right
+      Select: Keyboard/1/Button/Apostrophe
+      Start: Keyboard/1/Button/Return
+      A: Keyboard/1/Button/Z
+      B: Keyboard/1/Button/X
+      X: Keyboard/1/Button/A
+      Y: Keyboard/1/Button/S
+      L: Keyboard/1/Button/D
+      L-Trigger
+      R: Keyboard/1/Button/C
+      R-Trigger
+      Z: Keyboard/1/Button/V
+      LeftAnalogX-axis
+      LeftAnalogY-axis
+      CAnalogX-axis
+      CAnalogY-axis
+      Start: Keyboard/1/Button/Enter
+
     Mouse
       X-axis
       Y-axis

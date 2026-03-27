@@ -97,6 +97,7 @@ auto Interface::devices(uint port) -> vector<Device> {
   if(port == ID::Port::Controller1) return {
     {ID::Device::None,    "None"   },
     {ID::Device::Gamepad, "Gamepad"},
+    {ID::Device::HoriGamecube, "Hori Gamecube"},
     {ID::Device::Mouse,   "Mouse"  }
   };
 
@@ -138,6 +139,27 @@ auto Interface::inputs(uint device) -> vector<Input> {
     {Type::Trigger, "R"     },
     {Type::Control, "Select"},
     {Type::Control, "Start" }
+  };
+
+  if(device == ID::Device::HoriGamecube) return {
+    {Type::Hat,     "Up"                },
+    {Type::Hat,     "Down"              },
+    {Type::Hat,     "Left"              },
+    {Type::Hat,     "Right"             },
+    {Type::Button,  "B"                 },
+    {Type::Button,  "A"                 },
+    {Type::Button,  "Y"                 },
+    {Type::Button,  "X"                 },
+    {Type::Trigger, "L"                 },
+    {Type::Axis,    "L-Trigger"         },
+    {Type::Trigger, "R"                 },
+    {Type::Axis,    "R-Trigger"         },
+    {Type::Trigger, "Z"                 },
+    {Type::Axis,    "Left Analog X-axis"},
+    {Type::Axis,    "Left Analog Y-axis"},
+    {Type::Axis,    "C Analog X-axis"   },
+    {Type::Axis,    "C Analog Y-axis"   },
+    {Type::Control, "Start"             }
   };
 
   if(device == ID::Device::Mouse) return {

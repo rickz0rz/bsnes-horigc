@@ -5,6 +5,7 @@ namespace SuperFamicom {
 ControllerPort controllerPort1;
 ControllerPort controllerPort2;
 #include "gamepad/gamepad.cpp"
+#include "hori-gamecube/hori-gamecube.cpp"
 #include "mouse/mouse.cpp"
 #include "super-multitap/super-multitap.cpp"
 #include "super-scope/super-scope.cpp"
@@ -40,6 +41,7 @@ auto ControllerPort::connect(uint deviceID) -> void {
   switch(deviceID) { default:
   case ID::Device::None: device = new Controller(port); break;
   case ID::Device::Gamepad: device = new Gamepad(port); break;
+  case ID::Device::HoriGamecube: device = new HoriGamecube(port); break;
   case ID::Device::Mouse: device = new Mouse(port); break;
   case ID::Device::SuperMultitap: device = new SuperMultitap(port); break;
   case ID::Device::SuperScope: device = new SuperScope(port); break;
