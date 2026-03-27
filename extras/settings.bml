@@ -122,20 +122,26 @@ SuperFamicom
       Down: Keyboard/1/Button/Down
       Left: Keyboard/1/Button/Left
       Right: Keyboard/1/Button/Right
-      A: Keyboard/1/Button/Z
-      B: Keyboard/1/Button/X
-      X: Keyboard/1/Button/A
-      Y: Keyboard/1/Button/S
-      L: Keyboard/1/Button/D
+      A: Keyboard/1/Button/A
+      B: Keyboard/1/Button/B
+      X: Keyboard/1/Button/X
+      Y: Keyboard/1/Button/Y
+      L: Keyboard/1/Button/L
       L-Trigger
-      R: Keyboard/1/Button/C
+      R: Keyboard/1/Button/R
       R-Trigger
-      Z: Keyboard/1/Button/V
-      LeftAnalogX-axis
-      LeftAnalogY-axis
-      CAnalogX-axis
-      CAnalogY-axis
-      Start: Keyboard/1/Button/Enter
+      Z: Keyboard/1/Button/Z
+      ControlStickX-axis
+      ControlStickY-axis
+      CStickX-axis
+      CStickY-axis
+      Start: Keyboard/1/Button/W
+      Order: Keyboard/1/Button/0
+      Reset: Keyboard/1/Button/-
+      Menu: Keyboard/1/Button/=
+      Hash: Keyboard/1/Button/P
+      Select: Keyboard/1/Button/[
+      Asterisk: Keyboard/1/Button/]
     Mouse
       X-axis
       Y-axis
