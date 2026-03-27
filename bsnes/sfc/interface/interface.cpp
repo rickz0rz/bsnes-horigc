@@ -95,10 +95,10 @@ auto Interface::ports() -> vector<Port> { return {
 
 auto Interface::devices(uint port) -> vector<Device> {
   if(port == ID::Port::Controller1) return {
-    {ID::Device::None,    "None"   },
-    {ID::Device::Gamepad, "Gamepad"},
+    {ID::Device::None,         "None"   },
+    {ID::Device::Gamepad,      "Gamepad"},
     {ID::Device::HoriGamecube, "Hori Gamecube"},
-    {ID::Device::Mouse,   "Mouse"  }
+    {ID::Device::Mouse,        "Mouse"  }
   };
 
   if(port == ID::Port::Controller2) return {
@@ -141,6 +141,7 @@ auto Interface::inputs(uint device) -> vector<Input> {
     {Type::Control, "Start" }
   };
 
+  /*
   if(device == ID::Device::HoriGamecube) return {
     {Type::Hat,     "Up"                },
     {Type::Hat,     "Down"              },
@@ -150,17 +151,17 @@ auto Interface::inputs(uint device) -> vector<Input> {
     {Type::Button,  "B"                 },
     {Type::Button,  "X"                 },
     {Type::Button,  "Y"                 },
-    {Type::Trigger, "L"                 },
-    {Type::Axis,    "L-Trigger"         },
-    {Type::Trigger, "R"                 },
-    {Type::Axis,    "R-Trigger"         },
+    {Type::Button, "L"                 },
+    {Type::Trigger,    "L-Trigger"         },
+    {Type::Button, "R"                 },
+    {Type::Trigger,    "R-Trigger"         },
     {Type::Button,  "Z"                 },
     {Type::Axis,    "Left Analog X-axis"},
     {Type::Axis,    "Left Analog Y-axis"},
     {Type::Axis,    "C Analog X-axis"   },
     {Type::Axis,    "C Analog Y-axis"   },
     {Type::Control, "Start"             }
-  };
+  };*/
 
   if(device == ID::Device::Mouse) return {
     {Type::Axis,   "X-axis"},
