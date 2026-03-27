@@ -4,11 +4,11 @@ Hori / "LodgeNet" SNES Controller Protocol (Reverse Engineered)
 
 This device emulates a hypothetical adapter that would sit between a
 Hori-manufactured LodgeNet/GameCube-style controller and a SNES running a
-factory/test ROM. The specifics as to how this device actually would interface
-with the LodgeNet controller are largely still unknown.
+factory/test ROM. The exact real hardware arrangement is still unknown, but the
+current emulation does implement the core 64-bit response path well enough for
+the controller to be usable.
 
-This is NOT a standard SNES controller protocol. Also this file is just missing
-a ton of stuff and barely works.
+This is NOT a standard SNES controller protocol.
 
 Summary
 -------
@@ -20,7 +20,8 @@ The protocol uses:
   - $4016 reads  -> clock + data input (DATA1)
   - $4201 bit 6  -> auxiliary output (host -> controller)
 
-Only DATA1 is currently required for basic emulation.
+Current emulation only drives DATA1. The auxiliary host->controller signaling
+path is still only documented here and not decoded yet.
 
 -------------------------------------------------------------------------------
 Transaction Framing
@@ -48,12 +49,12 @@ Bit Timing / Ordering
 - One bit is consumed per host read of $4016
 
 -------------------------------------------------------------------------------
-Decoded Packet Format (what the ROM expects)
+Decoded Packet Format
 -------------------------------------------------------------------------------
 Let B0..B7 be the logical decoded bytes:
 
   B0 = digital button byte
-  B1 = status / mode byte
+  B1 = status byte, with more digital buttons
   B2 = main stick X
   B3 = main stick Y
   B4 = C-stick X
@@ -79,32 +80,28 @@ Equivalent:
     SNES sees: logical = bitreverse(raw) ^ 0xFF
 
 -------------------------------------------------------------------------------
-Idle / Neutral Packet
+Neutral State
 -------------------------------------------------------------------------------
-Logical (decoded):
-    00 80 80 80 80 80 00 00
+The current implementation reports:
 
-Raw (on wire):
-    00 80 FE FE FE FE FF FF
+    B0 = 0x00
+    B1 = 0x80
 
-This is sufficient for "controller present and idle".
+with both sticks centered and both analog triggers released, all encoded
+through the same B2..B7 wire transform used for active input.
 
 -------------------------------------------------------------------------------
 Status Byte (B1)
 -------------------------------------------------------------------------------
-Observed values:
-
-    0x80 = ready / idle
-    0x84 = trigger L fully pressed (click)
-    0x88 = trigger R fully pressed (click)
-    0x90 = mode/state (test step)
-    0xA0 = mode/state (test step)
-
-Likely structure:
+Current implementation:
     bit 7 = ready/valid
-    bit 2 = trigger L click
-    bit 3 = trigger R click
-    bits 4–6 = mode / LED / system state
+    bit 2 = digital L click
+    bit 3 = digital R click
+    bit 4 = Y
+    bit 5 = X
+
+Older reverse-engineering notes suggested additional mode/state values such as
+0x90 and 0xA0, but those are not currently modeled.
 
 -------------------------------------------------------------------------------
 Analog Requirements
@@ -118,24 +115,26 @@ Sticks:
     ROM performs calibration + region tests (3x3 grid)
 
 -------------------------------------------------------------------------------
-Digital Sequence (Factory Test)
+Digital Mapping Notes
 -------------------------------------------------------------------------------
-The ROM checks specific (B0,B1) pairs in sequence:
+B0 currently maps as:
+    bit 0 = A
+    bit 1 = B
+    bit 2 = Z
+    bit 3 = Start
+    bit 4 = Up
+    bit 5 = Down
+    bit 6 = Left
+    bit 7 = Right
 
-    (00,A0), (00,90),
-    (08,80), (02,80), (01,80),
-    (30,80), (C0,80), (B0,80),
-    (70,80), (D0,80), (F0,80),
-    (10,80), (20,80), (40,80),
-    (80,80), (50,80), (A0,80),
-    (90,80), (60,80)
-
-These likely correspond to:
-    - front-panel LodgeNet buttons
-    - standard controller buttons
-    - combinations / directional inputs
-
-Exact semantic mapping still TBD.
+The LodgeNet front-panel buttons are currently exposed by aliasing them onto
+otherwise impossible d-pad combinations:
+    Order    = Up + Left + Right
+    Reset    = Up + Down + Left + Right
+    Menu     = Up + Down
+    Hash     = Up + Down + Left
+    Select   = Up + Down + Right
+    Asterisk = Left + Right
 
 -------------------------------------------------------------------------------
 Host -> Controller Signaling (Advanced)
@@ -147,7 +146,7 @@ Observed command seeds:
 
 This likely selects controller mode / report format.
 
-Current emulation does NOT require decoding this for basic operation.
+Current emulation still does not decode this for normal operation.
 
 -------------------------------------------------------------------------------
 Implementation Notes
@@ -155,9 +154,7 @@ Implementation Notes
 - Do NOT use standard SNES latch-reset behavior
 - Use a sync state machine to detect transaction start
 - Stream exactly 64 bits per transaction
-- After 64 bits, we're returning idle (1) until next preamble -- theoretically
-  I presume this could be either 0 or 1, but this seems to work fine in my
-  local testing.
+- After 64 bits, return idle high (1) until the next preamble
 - B2–B7 must use inverted + bit-reversed encoding
 
 -------------------------------------------------------------------------------
@@ -253,8 +250,6 @@ auto HoriGamecube::latch(bool data) -> void {
       // Ignore all latch toggles while streaming.
       // The ROM flips 0/1 per bit; that should not restart us.
 
-      // The lodgenet keys on the top are just multiplexed d-pad presses (since you shouldn't
-      // be able to press down + up or left + right at the same time anyways...)
       order = platform->inputPoll(port, ID::Device::HoriGamecube, Order) & 1;
       reset = platform->inputPoll(port, ID::Device::HoriGamecube, Reset) & 1;
       menu = platform->inputPoll(port, ID::Device::HoriGamecube, Menu) & 1;
@@ -291,30 +286,17 @@ auto HoriGamecube::latch(bool data) -> void {
       l = platform->inputPoll(port, ID::Device::HoriGamecube, L) & 1;
       r = platform->inputPoll(port, ID::Device::HoriGamecube, R) & 1;
 
-      b0 = 0;
-      b1 = 0;
+      b0 = a | b << 1 | z << 2 | start << 3 | up << 4 | down << 5 | left << 6 | right << 7;
+      b1 = b1Ready | l << 2 | r << 3 | y << 4 | x << 5;
 
-      b0 = a;
-      b0 = b0 | b << 1;
-      b0 = b0 | z << 2;
-      b0 = b0 | start << 3;
-      b0 = b0 | up << 4;
-      b0 = b0 | down << 5;
-      b0 = b0 | left << 6;
-      b0 = b0 | right << 7;
+      controlStickX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, ControlStickXAxis) + 128);
+      controlStickY = encode(127 - (platform->inputPoll(port, ID::Device::HoriGamecube, ControlStickYAxis)));
+      
+      cStickX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, CStickXAxis) + 128);
+      cStickY = encode(127 - (platform->inputPoll(port, ID::Device::HoriGamecube, CStickYAxis)));
 
-      b1 = 0x80; // ready bit
-      b1 = b1 | l << 2;
-      b1 = b1 | r << 3;
-      b1 = b1 | y << 4;
-      b1 = b1 | x << 5;
-
-      controlStickX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, ControlStickXAxis));
-      controlStickY = encode(platform->inputPoll(port, ID::Device::HoriGamecube, ControlStickYAxis));
-      cStickX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, CStickXAxis));
-      cStickY = encode(platform->inputPoll(port, ID::Device::HoriGamecube, CStickYAxis));
-      lTrigger = encode(platform->inputPoll(port, ID::Device::HoriGamecube, LTrigger));
-      rTrigger = encode(platform->inputPoll(port, ID::Device::HoriGamecube, RTrigger));
+      lTrigger = encode(127 - (platform->inputPoll(port, ID::Device::HoriGamecube, LTrigger)));
+      rTrigger = encode(127 - (platform->inputPoll(port, ID::Device::HoriGamecube, RTrigger)));
 
       break;
   }

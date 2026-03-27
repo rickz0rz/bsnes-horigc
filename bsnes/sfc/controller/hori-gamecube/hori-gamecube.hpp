@@ -23,6 +23,8 @@ enum class SyncState : uint {
   SyncState sync = SyncState::Idle;
   uint counter = 64;  // not streaming initially
 
+  const uint b1Ready = 0x80;
+
   bool up, down, left, right, a, b, x, y, l, r, z, start;
   bool order, reset, menu, hash, select, asterisk;
   uint controlStickX, controlStickY, cStickX, cStickY, lTrigger, rTrigger;
