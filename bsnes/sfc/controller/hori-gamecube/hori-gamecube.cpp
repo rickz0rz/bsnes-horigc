@@ -177,7 +177,28 @@ auto HoriGamecube::data() -> uint2 {
 
   const uint byte = counter >> 3;
   const uint bit = counter & 7;  // LSB-first
-  const uint value = (packet[byte] >> bit) & 1;
+
+  uint value = 0;
+
+  if (byte == 0) {
+    value = (b0 >> bit) & 1;
+  } else if (byte == 1) {
+    value = (b1 >> bit) & 1;
+  } else if (byte == 2) {
+    value = (leftAnalogX >> bit) & 1;
+  } else if (byte == 3) {
+    value = (leftAnalogY >> bit) & 1;
+  } else if (byte == 4) {
+    value = (cAnalogX >> bit) & 1;
+  } else if (byte == 5) {
+    value = (cAnalogY >> bit) & 1;
+  } else if (byte == 6) {
+    value = (lTrigger >> bit) & 1;
+  } else if (byte == 7) {
+    value = (rTrigger >> bit) & 1;
+  } else {
+    value = (packet[byte] >> bit) & 1;
+  }
 
   counter++;
 
@@ -187,6 +208,17 @@ auto HoriGamecube::data() -> uint2 {
   }
 
   return value;
+}
+
+inline uint8 encode(uint8 b) {
+  b ^= 0xFF;  // invert
+
+  uint8 r = 0;
+  for(int i = 0; i < 8; i++) {
+    r = (r << 1) | (b & 1);
+    b >>= 1;
+  }
+  return r;
 }
 
 auto HoriGamecube::latch(bool data) -> void {
@@ -220,6 +252,83 @@ auto HoriGamecube::latch(bool data) -> void {
     case SyncState::Streaming:
       // Ignore all latch toggles while streaming.
       // The ROM flips 0/1 per bit; that should not restart us.
+
+      // How are these analog values encoded?
+
+      // Since directional buttons can't go up+down or left+right, those combinations
+      // are used for the special navigation buttons.
+      // 
+      // Order   Reset   Menu
+      //   #    Select    *
+      //
+      // Left + Up + Right = Order
+      // ? = Reset
+      // Up + Down = Menu
+      // ? = #
+      // ? = Select
+      // Left + Right = *
+      //
+      // When these are activated, do not trigger the directional buttons.
+      // TODO: Add these to the top menu.
+      
+      a = platform->inputPoll(port, ID::Device::HoriGamecube, A) & 1;
+      b = platform->inputPoll(port, ID::Device::HoriGamecube, B) & 1;
+      x = platform->inputPoll(port, ID::Device::HoriGamecube, X) & 1;
+      y = platform->inputPoll(port, ID::Device::HoriGamecube, Y) & 1;
+      z = platform->inputPoll(port, ID::Device::HoriGamecube, Z) & 1;
+      start = platform->inputPoll(port, ID::Device::HoriGamecube, Start) & 1;
+      up = platform->inputPoll(port, ID::Device::HoriGamecube, Up) & 1;
+      down = platform->inputPoll(port, ID::Device::HoriGamecube, Down) & 1;
+      left = platform->inputPoll(port, ID::Device::HoriGamecube, Left) & 1;
+      right = platform->inputPoll(port, ID::Device::HoriGamecube, Right) & 1;
+
+      l = platform->inputPoll(port, ID::Device::HoriGamecube, L) & 1;
+      r = platform->inputPoll(port, ID::Device::HoriGamecube, R) & 1;
+
+      b0 = 0;
+      b1 = 0;
+
+      b0 = a;
+      b0 = b0 | b << 1;
+      b0 = b0 | z << 2;
+      b0 = b0 | start << 3;
+      b0 = b0 | up << 4;
+      b0 = b0 | down << 5;
+      b0 = b0 | left << 6;
+      b0 = b0 | right << 7;
+
+      // 0x80 = None
+
+      b1 = 0x80;
+      b1 = b1 | l << 2;
+      b1 = b1 | r << 3;
+
+      // 0x84 = LTrigger
+      // 0x88 = RTrigger
+      // 0x90 = Y
+      // 0xA0 = X
+      // 0xB0 = X + Y
+
+      // 0xC0 = Unresponsive
+
+      // << 1 causes anger.
+      // b1 = b1 | lTrigger << 2;
+      // << 3 causes anger.
+      // b1 = b1 | rTrigger << 4; // This one 
+
+      // b1 = b1 | y << 2;
+      // b1 = b1 | lTrigger << 3;
+      // b1 = b1 | rTrigger << 4;
+
+      b1 = b1 | (1 << 7); // Ready bit.
+
+      leftAnalogX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, LeftAnalogXAxis));
+      leftAnalogY = encode(platform->inputPoll(port, ID::Device::HoriGamecube, LeftAnalogYAxis));
+      cAnalogX = encode(platform->inputPoll(port, ID::Device::HoriGamecube, CAnalogXAxis));
+      cAnalogY = encode(platform->inputPoll(port, ID::Device::HoriGamecube, CAnalogYAxis));
+      lTrigger = encode(platform->inputPoll(port, ID::Device::HoriGamecube, LTrigger));
+      rTrigger = encode(platform->inputPoll(port, ID::Device::HoriGamecube, RTrigger));
+
       break;
   }
 }

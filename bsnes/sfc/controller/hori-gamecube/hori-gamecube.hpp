@@ -1,7 +1,7 @@
 struct HoriGamecube : Controller {
   enum : uint {
-    Up, Down, Left, Right, A, B, X, Y, LTrigger, LTriggerClick, RTrigger, RTriggerClick, Z,
-    LeftAnalogX, LeftAnalogY, CAnalogX, CAnalogY, Start,
+    Up, Down, Left, Right, A, B, X, Y, L, LTrigger, R, RTrigger, Z,
+    LeftAnalogXAxis, LeftAnalogYAxis, CAnalogXAxis, CAnalogYAxis, Start,
   };
 
   HoriGamecube(uint port);
@@ -22,7 +22,20 @@ enum class SyncState : uint {
   SyncState sync = SyncState::Idle;
   uint counter = 64;  // not streaming initially
 
+  bool up, down, left, right, a, b, x, y, z, l, r, start;
+  uint leftAnalogX, leftAnalogY, cAnalogX, cAnalogY, lTrigger, rTrigger;
+  
+  // rendered button bytes.
+  uint b0, b1;
+
   static constexpr uint8 packet[8] = {
-    0x00, 0x80, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF, 0xFF
+    0x00,
+    0x80,
+    0xFE, // Left analog stick, X
+    0xFF, // Left analog stick, Y
+    0xFE, // C analog stick, X
+    0xFE, // C analog stick, Y
+    0xFF, // Left trigger analog
+    0xFF  // Right trigger analog
   };
 };

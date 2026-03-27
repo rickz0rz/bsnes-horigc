@@ -123,8 +123,6 @@ SuperFamicom
       Down: Keyboard/1/Button/Down
       Left: Keyboard/1/Button/Left
       Right: Keyboard/1/Button/Right
-      Select: Keyboard/1/Button/Apostrophe
-      Start: Keyboard/1/Button/Return
       A: Keyboard/1/Button/Z
       B: Keyboard/1/Button/X
       X: Keyboard/1/Button/A
