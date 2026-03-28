@@ -11,7 +11,7 @@ struct HoriGamecube : Controller {
   auto latch(bool data) -> void;
 
 private:
-enum class SyncState : uint {
+  enum class SyncState : uint {
     Idle,        // waiting
     Saw0,        // saw first 0
     Saw01,       // saw 0 -> 1
@@ -23,23 +23,11 @@ enum class SyncState : uint {
   SyncState sync = SyncState::Idle;
   uint counter = 64;  // not streaming initially
 
-  const uint b1Ready = 0x80;
-
   bool up, down, left, right, a, b, x, y, l, r, z, start;
   bool order, reset, menu, hash, select, asterisk;
   uint controlStickX, controlStickY, cStickX, cStickY, lTrigger, rTrigger;
   
   // rendered button bytes.
   uint b0, b1;
-
-  static constexpr uint8 packet[8] = {
-    0x00,
-    0x80,
-    0xFE, // Left analog stick, X
-    0xFF, // Left analog stick, Y
-    0xFE, // C analog stick, X
-    0xFE, // C analog stick, Y
-    0xFF, // Left trigger analog
-    0xFF  // Right trigger analog
-  };
+  const uint b1Ready = 0x80;
 };

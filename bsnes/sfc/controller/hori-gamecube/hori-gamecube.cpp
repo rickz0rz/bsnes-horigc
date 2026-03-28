@@ -1,162 +1,35 @@
 /*
 -------------------------------------------------------------------------------
-Hori / "LodgeNet" SNES Controller Protocol (Reverse Engineered)
+Hori / "LodgeNet" SNES Controller Protocol
 
-This device emulates a hypothetical adapter that would sit between a
-Hori-manufactured LodgeNet/GameCube-style controller and a SNES running a
-factory/test ROM. The exact real hardware arrangement is still unknown, but the
-current emulation does implement the core 64-bit response path well enough for
-the controller to be usable.
+This is not a standard SNES controller. The host bit-bangs a custom 64-bit
+transaction over the controller port, and the emulator currently only drives
+DATA1.
 
-This is NOT a standard SNES controller protocol.
+Transaction rules used by this implementation:
+- Detect the latch preamble `0 -> 1 -> 0 -> 1` to begin a transfer.
+- Once streaming starts, ignore further latch transitions until 64 bits have
+  been shifted.
+- Shift one bit per host read, LSB-first.
+- After 64 bits, return idle-high (`1`) until the next valid preamble.
 
-Summary
--------
-The SNES host bit-bangs a custom bidirectional serial protocol over the
-controller port. Each transaction returns a 64-bit (8-byte) packet.
+Logical packet layout (`B0`..`B7`):
+- `B0`: digital buttons (`A, B, Z, Start, Up, Down, Left, Right`)
+- `B1`: status / extra buttons (`bit 7 = ready`, `bit 2 = L`, `bit 3 = R`,
+  `bit 4 = Y`, `bit 5 = X`)
+- `B2`: main stick X
+- `B3`: main stick Y
+- `B4`: C-stick X
+- `B5`: C-stick Y
+- `B6`: analog trigger L
+- `B7`: analog trigger R
 
-The protocol uses:
-  - $4016 writes -> latch/phase control
-  - $4016 reads  -> clock + data input (DATA1)
-  - $4201 bit 6  -> auxiliary output (host -> controller)
+Wire encoding:
+- `B0` and `B1` are sent directly, LSB-first.
+- `B2`..`B7` are sent as `bitreverse(B ^ 0xff)`, still shifted LSB-first.
 
-Current emulation only drives DATA1. The auxiliary host->controller signaling
-path is still only documented here and not decoded yet.
-
--------------------------------------------------------------------------------
-Transaction Framing
--------------------------------------------------------------------------------
-The host initiates a transfer with a latch preamble:
-
-    0 -> 1 -> 0 -> 1
-
-After this sequence, the controller must output a 64-bit response.
-
-IMPORTANT:
-- The host continues toggling 0/1 during the transfer.
-- These toggles are NOT a reset signal.
-- The controller must NOT restart shifting during the 64-bit stream.
-
-Implementation rule:
-- Detect the 0→1→0→1 sequence to start a packet
-- Ignore latch transitions while streaming
-
--------------------------------------------------------------------------------
-Bit Timing / Ordering
--------------------------------------------------------------------------------
-- Total packet size: 64 bits (8 bytes)
-- Bits are shifted LSB-first
-- One bit is consumed per host read of $4016
-
--------------------------------------------------------------------------------
-Decoded Packet Format
--------------------------------------------------------------------------------
-Let B0..B7 be the logical decoded bytes:
-
-  B0 = digital button byte
-  B1 = status byte, with more digital buttons
-  B2 = main stick X
-  B3 = main stick Y
-  B4 = C-stick X
-  B5 = C-stick Y
-  B6 = analog trigger L
-  B7 = analog trigger R
-
--------------------------------------------------------------------------------
-Wire Encoding (CRITICAL)
--------------------------------------------------------------------------------
-Bytes are NOT sent directly as B0..B7.
-
-Transmission rules:
-
-- B0 and B1:
-    sent directly (LSB-first)
-
-- B2..B7:
-    raw = bitreverse(B ^ 0xFF)
-    then sent LSB-first
-
-Equivalent:
-    SNES sees: logical = bitreverse(raw) ^ 0xFF
-
--------------------------------------------------------------------------------
-Neutral State
--------------------------------------------------------------------------------
-The current implementation reports:
-
-    B0 = 0x00
-    B1 = 0x80
-
-with both sticks centered and both analog triggers released, all encoded
-through the same B2..B7 wire transform used for active input.
-
--------------------------------------------------------------------------------
-Status Byte (B1)
--------------------------------------------------------------------------------
-Current implementation:
-    bit 7 = ready/valid
-    bit 2 = digital L click
-    bit 3 = digital R click
-    bit 4 = Y
-    bit 5 = X
-
-Older reverse-engineering notes suggested additional mode/state values such as
-0x90 and 0xA0, but those are not currently modeled.
-
--------------------------------------------------------------------------------
-Analog Requirements
--------------------------------------------------------------------------------
-Triggers:
-    Released:  < 0x36
-    Pressed:  >= 0xD2
-
-Sticks:
-    Center ≈ 0x80
-    ROM performs calibration + region tests (3x3 grid)
-
--------------------------------------------------------------------------------
-Digital Mapping Notes
--------------------------------------------------------------------------------
-B0 currently maps as:
-    bit 0 = A
-    bit 1 = B
-    bit 2 = Z
-    bit 3 = Start
-    bit 4 = Up
-    bit 5 = Down
-    bit 6 = Left
-    bit 7 = Right
-
-The LodgeNet front-panel buttons are currently exposed by aliasing them onto
-otherwise impossible d-pad combinations:
-    Order    = Up + Left + Right
-    Reset    = Up + Down + Left + Right
-    Menu     = Up + Down
-    Hash     = Up + Down + Left
-    Select   = Up + Down + Right
-    Asterisk = Left + Right
-
--------------------------------------------------------------------------------
-Host -> Controller Signaling (Advanced)
--------------------------------------------------------------------------------
-The SNES also transmits a byte (via $4201 bit 6) during each byte read.
-
-Observed command seeds:
-    0x20, 0x60, 0xA0, 0xE0
-
-This likely selects controller mode / report format.
-
-Current emulation still does not decode this for normal operation.
-
--------------------------------------------------------------------------------
-Implementation Notes
--------------------------------------------------------------------------------
-- Do NOT use standard SNES latch-reset behavior
-- Use a sync state machine to detect transaction start
-- Stream exactly 64 bits per transaction
-- After 64 bits, return idle high (1) until the next preamble
-- B2–B7 must use inverted + bit-reversed encoding
-
+The SNES also appears to transmit auxiliary command data via `$4201 bit 6`, but
+that host-to-controller path is not currently decoded here.
 -------------------------------------------------------------------------------
 */
 
@@ -193,8 +66,6 @@ auto HoriGamecube::data() -> uint2 {
     value = (lTrigger >> bit) & 1;
   } else if (byte == 7) {
     value = (rTrigger >> bit) & 1;
-  } else {
-    value = (packet[byte] >> bit) & 1;
   }
 
   counter++;
@@ -247,9 +118,6 @@ auto HoriGamecube::latch(bool data) -> void {
       break;
 
     case SyncState::Streaming:
-      // Ignore all latch toggles while streaming.
-      // The ROM flips 0/1 per bit; that should not restart us.
-
       order = platform->inputPoll(port, ID::Device::HoriGamecube, Order) & 1;
       reset = platform->inputPoll(port, ID::Device::HoriGamecube, Reset) & 1;
       menu = platform->inputPoll(port, ID::Device::HoriGamecube, Menu) & 1;
